@@ -11,12 +11,120 @@ import streamlit as st
 from pathlib import Path
 import sys
 from PIL import Image
+import joblib
+import pandas as pd
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
+traditional_feature_controls = { 
+    'Distance(mi)': { 'label': 'Distance (mi)', 'min': 0, 'max': 100, 'control': 'number_input' },
+    'Timezone': { 'label': 'Timezone', 'options': {"UTC+5": 5, "UTC+6": 6,"UTC+7": 7,"UTC+8": 8}, 'control': 'selectbox' },
+    'Temperature(F)': { 'label': 'Temperature (F)', 'min': -50, 'max': 150, 'control': 'slider' },
+    'Wind_Chill(F)': { 'label': 'Wind Chill (F)', 'min': -50, 'max': 150, 'control': 'number_input' },
+    'Humidity(%)': { 'label': 'Humidity (%)', 'min': 0, 'max': 100, 'control': 'number_input' },
+    'Pressure(in)': { 'label': 'Pressure (in)', 'min': 28, 'max': 32, 'control': 'number_input' },
+    'Visibility(mi)': { 'label': 'Visibility (mi)', 'min': 0, 'max': 10, 'control': 'number_input' },
+    'Wind_Speed(mph)': { 'label': 'Wind Speed (mph)', 'min': 0, 'max': 100, 'control': 'number_input' },
+    'Precipitation(in)': { 'label': 'Precipitation (in)', 'min': 0, 'max': 10, 'control': 'number_input' },
+    'Amenity': { 'label': 'Amenity', 'options': ['Yes', 'No'], 'control': 'selectbox' },
+    'Bump': { 'label': 'Bump', 'options': ['Yes', 'No'], 'control': 'selectbox' },
+    'Crossing': { 'label': 'Crossing', 'options': ['Yes', 'No'], 'control': 'selectbox' },
+    'Give_Way': { 'label': 'Give Way', 'options': ['Yes', 'No'], 'control': 'selectbox' },
+    'Junction': { 'label': 'Junction', 'options': ['Yes', 'No'], 'control': 'selectbox' },
+    'No_Exit': { 'label': 'No Exit', 'options': ['Yes', 'No'], 'control': 'selectbox' },
+    'Railway': { 'label': 'Railway', 'options': ['Yes', 'No'], 'control': 'selectbox' },
+    'Roundabout': { 'label': 'Roundabout', 'options': ['Yes', 'No'], 'control': 'selectbox' },
+    'Station': { 'label': 'Station', 'options': ['Yes', 'No'], 'control': 'selectbox' },
+    'Stop': { 'label': 'Stop', 'options': ['Yes', 'No'], 'control': 'selectbox' },
+    'Traffic_Calming': { 'label': 'Traffic Calming', 'options': ['Yes', 'No'], 'control': 'selectbox' },
+    'Traffic_Signal': { 'label': 'Traffic Signal', 'options': ['Yes', 'No'], 'control': 'selectbox' },
+    'Turning_Loop': { 'label': 'Turning Loop', 'options': ['Yes', 'No'], 'control': 'selectbox' },
+    'Sunrise_Sunset': { 'label': 'Sunrise Sunset', 'options': ['Yes', 'No'], 'control': 'selectbox' },
+    'Civil_Twilight': { 'label': 'Civil Twilight', 'options': ['Yes', 'No'], 'control': 'selectbox' },
+    'Nautical_Twilight': { 'label': 'Nautical Twilight', 'options': ['Yes', 'No'], 'control': 'selectbox' },
+    'Astronomical_Twilight': { 'label': 'Astronomical Twilight', 'options': ['Yes', 'No'], 'control': 'selectbox' },
+    'hour': { 'label': 'Hour', 'min': 0, 'max': 23, 'control': 'number_input' },
+    'day_of_week': { 'label': 'Day of Week', 'options': ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'], 'control': 'selectbox' },
+    'month': { 'label': 'Month', 'options': ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'], 'control': 'selectbox' },
+    'is_weekend': { 'label': 'Is Weekend', 'options': ['Yes', 'No'], 'control': 'selectbox' },
+    'is_morning_rush': { 'label': 'Is Morning Rush', 'options': ['Yes', 'No'], 'control': 'selectbox' },
+    'is_evening_rush': { 'label': 'Is Evening Rush', 'options': ['Yes', 'No'], 'control': 'selectbox' },
+    'is_rush_hour': { 'label': 'Is Rush Hour', 'options': ['Yes', 'No'], 'control': 'selectbox' },
+    'duration_min': { 'label': 'Duration (min)', 'min': 0, 'max': 120, 'control': 'number_input' },
+    'wind_dir_deg': { 'label': 'Wind Direction (deg)', 'min': 0, 'max': 360, 'control': 'number_input' },
+    'weather_cond_num': { 'label': 'Weather Condition', 'min': 0, 'max': 10, 'control': 'number_input' },
+    'weather_data_available': { 'label': 'Weather Data Available', 'options': ['Yes', 'No'], 'control': 'selectbox' },
+    'is_freezing': { 'label': 'Is Freezing', 'options': ['Yes', 'No'], 'control': 'selectbox' },
+    'low_visibility': { 'label': 'Low Visibility', 'options': ['Yes', 'No'], 'control': 'selectbox' },
+    'accident_dir': { 'label': 'Accident Direction', 'options': ['North', 'South', 'East', 'West'], 'control': 'selectbox' },
+    'lat_bin': { 'label': 'Latitude Bin', 'min': 0, 'max': 10, 'control': 'number_input' },
+    'n_road_features': { 'label': 'Number of Road Features', 'min': 0, 'max': 10, 'control': 'number_input' },
+    'has_traffic_control': { 'label': 'Has Traffic Control', 'options': ['Yes', 'No'], 'control': 'selectbox' },
+    'Severity_Binary': { 'label': 'Severity Binary', 'options': ['Yes', 'No'], 'control': 'selectbox' }
+}
+
 from models.model3_cnn.inference import THRESHOLD, predict_single_image
+
+def convert_feature_value(feature_name, value):
+    control_config = traditional_feature_controls[feature_name]
+
+    # Dictionary-backed selectbox, e.g. Timezone
+    if isinstance(control_config.get("options"), dict):
+        return control_config["options"][value]
+
+    # Yes/No selectboxes
+    if value == "Yes":
+        return 1
+    if value == "No":
+        return 0
+
+    # Day names
+    day_map = {
+        "Monday": 0,
+        "Tuesday": 1,
+        "Wednesday": 2,
+        "Thursday": 3,
+        "Friday": 4,
+        "Saturday": 5,
+        "Sunday": 6,
+    }
+
+    if feature_name == "day_of_week":
+        return day_map[value]
+
+    # Month names
+    month_map = {
+        "January": 1,
+        "February": 2,
+        "March": 3,
+        "April": 4,
+        "May": 5,
+        "June": 6,
+        "July": 7,
+        "August": 8,
+        "September": 9,
+        "October": 10,
+        "November": 11,
+        "December": 12,
+    }
+
+    if feature_name == "month":
+        return month_map[value]
+
+    # Direction labels
+    accident_dir_map = {
+        "North": 0,
+        "East": 1,
+        "South": 2,
+        "West": 3,
+    }
+
+    if feature_name == "accident_dir":
+        return accident_dir_map[value]
+
+    return value
 
 # Page config
 st.set_page_config(
@@ -71,22 +179,78 @@ elif model_choice == "Model 1: Traditional ML":
     # ---- INTEGRATION PATTERN (uncomment and adapt) ----
     @st.cache_resource
     def load_model1():
-        import joblib
         return joblib.load("models/model1_traditional_ml/saved_model/model.joblib")
     
+    @st.cache_resource
+    def load_feature_cols():
+        return joblib.load("models/model1_traditional_ml/saved_model/feature_columns.joblib")
+    
+    loaded_feature_cols = load_feature_cols()
+    feature_cols = [
+        col for col in loaded_feature_cols if col not in {"Severity"}
+    ]
     model = load_model1()
     
+    total_columns = len(feature_cols)
     # Create input fields for your features
     col1, col2 = st.columns(2)
     with col1:
-        feature_1 = st.number_input("Feature 1", value=0.0)
-        feature_2 = st.selectbox("Feature 2", ["Option A", "Option B"])
+        for i in range(total_columns // 2):
+            if traditional_feature_controls[feature_cols[i]]['control'] == 'number_input':
+                st.number_input(
+                    traditional_feature_controls[feature_cols[i]]['label'],
+                    min_value=traditional_feature_controls[feature_cols[i]]['min'],
+                    max_value=traditional_feature_controls[feature_cols[i]]['max'],
+                    key=feature_cols[i]
+                )
+            elif traditional_feature_controls[feature_cols[i]]['control'] == 'slider':
+                st.slider(
+                    traditional_feature_controls[feature_cols[i]]['label'],
+                    min_value=traditional_feature_controls[feature_cols[i]]['min'],
+                    max_value=traditional_feature_controls[feature_cols[i]]['max'],
+                    key=feature_cols[i]
+                )
+            elif traditional_feature_controls[feature_cols[i]]['control'] == 'selectbox':
+                st.selectbox(
+                    traditional_feature_controls[feature_cols[i]]['label'],
+                    options=traditional_feature_controls[feature_cols[i]]['options'],
+                    key=feature_cols[i]
+                )
+        # feature_1 = st.number_input("Feature 1", value=0.0)
+        # feature_2 = st.selectbox("Feature 2", ["Option A", "Option B"])
     with col2:
-        feature_3 = st.slider("Feature 3", 0, 100, 50)
-    
+        for i in range(total_columns // 2, total_columns):
+            if traditional_feature_controls[feature_cols[i]]['control'] == 'number_input':
+                st.number_input(
+                    traditional_feature_controls[feature_cols[i]]['label'],
+                    min_value=traditional_feature_controls[feature_cols[i]]['min'],
+                    max_value=traditional_feature_controls[feature_cols[i]]['max'],
+                    key=feature_cols[i]
+                )
+            elif traditional_feature_controls[feature_cols[i]]['control'] == 'selectbox':
+                st.selectbox(
+                    traditional_feature_controls[feature_cols[i]]['label'],
+                    options=traditional_feature_controls[feature_cols[i]]['options'],
+                    key=feature_cols[i]
+                )
+            elif traditional_feature_controls[feature_cols[i]]['control'] == 'slider':
+                st.slider(
+                    traditional_feature_controls[feature_cols[i]]['label'],
+                    min_value=traditional_feature_controls[feature_cols[i]]['min'],
+                    max_value=traditional_feature_controls[feature_cols[i]]['max'],
+                    key=feature_cols[i]
+                )
+
     if st.button("Predict"):
-        import pandas as pd
-        input_df = pd.DataFrame([{"feature_1": feature_1, "feature_2": feature_2, "feature_3": feature_3}])
+        
+        input_data = {}
+
+        for feature in feature_cols:
+            raw_value = st.session_state[feature]
+            input_data[feature] = convert_feature_value(feature, raw_value)
+
+        input_df = pd.DataFrame([input_data])
+
         prediction = model.predict(input_df)
         probability = model.predict_proba(input_df)
         st.success(f"Prediction: {prediction[0]}")
@@ -101,7 +265,9 @@ elif model_choice == "Model 2: Deep Learning":
     # Same pattern as Model 1, but load with:
     import tensorflow as tf
     model = tf.keras.models.load_model("models/model2_deep_learning/saved_model/model.keras")
-    st.info("Not yet implemented — load your model and add input fields here.")
+    
+    if st.button("Predict"):
+        st.success("Model loaded! Now add input fields and prediction logic here.")
 
 elif model_choice == "Model 3: CNN (Image Classification)":
     st.header("Model 3: CNN — Image Classification")
