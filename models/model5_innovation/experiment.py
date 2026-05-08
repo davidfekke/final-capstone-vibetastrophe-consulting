@@ -30,7 +30,7 @@ pd.set_option("display.max_columns", None)
 # ---------------------------------------------------------------------------
 def load_all():
     """Load the raw dataset and all trained artifacts."""
-    from train import load_customer_data, prepare_features, create_complaint_categories
+    from models.model5_innovation.train import load_customer_data, prepare_features, create_complaint_categories
 
     df = load_customer_data("urbanpulse_311_complaints.csv")
     df_prepared, _ = prepare_features(df)
