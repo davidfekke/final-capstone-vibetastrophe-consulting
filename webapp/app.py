@@ -377,66 +377,156 @@ elif model_choice == "Model 2: Deep Learning":
 
 elif model_choice == "Model 3: CNN (Image Classification)":
     from models.model3_cnn.inference import THRESHOLD, predict_single_image
-    st.header("Model 3: CNN — Image Classification")
+    st.header("Model 3: CNN — Pothole Image Classification")
+    st.markdown(
+        "Upload a road image (or load a sample below) to classify it as "
+        "**Pothole (Positive)** or **No Pothole (Negative)**."
+    )
 
-    # ---- INTEGRATION PATTERN (uncomment and adapt) ----
     @st.cache_resource
     def load_model3():
         import tensorflow as tf
-        return tf.keras.models.load_model("models/model3_cnn/saved_model/efficientnet_model.keras")
-    
+        model_path = ROOT_DIR / "models" / "model3_cnn" / "saved_model" / "efficientnet_model.keras"
+        return tf.keras.models.load_model(str(model_path))
+
     model = load_model3()
-    
-    uploaded_file = st.file_uploader("Upload an image", type=["png", "jpg", "jpeg"])
-    if uploaded_file is not None:
-        uploaded_file.seek(0)
-        image = Image.open(uploaded_file)
-        st.image(image, caption="Uploaded Image", use_container_width=True)
-    
-        if st.button("Classify"):
-            result = predict_single_image(model, uploaded_file, threshold=THRESHOLD)
-            if result["confidence"] >= THRESHOLD:
-                st.success(f"Prediction: {result['label']}")
-            else:
-                st.warning(f"Prediction: {result['label']}")
-            st.write(f"Confidence: {result['confidence']:.2%}")
-            st.caption(f"Decision threshold: {result['threshold']:.2f}")
-    # ---- END PATTERN ----
 
-    st.info("Not yet implemented — add image upload and classification here.")
-
-elif model_choice == "Model 4: NLP (Text Classification)":
-    from transformers import DistilBertTokenizerFast, DistilBertForSequenceClassification
-    st.header("Model 4: NLP — Text Classification")
-
-    categories = {
-        0: "Blocked Driveway",
-        1: "Heat/Hot water",
-        2: "Illegal Parking",
-        3: "Noise - Residential",
-        4: "Other",
-        5: "Snow or Ice"
+    # --- Sample image buttons ---
+    _img_root = ROOT_DIR / "data" / "raw" / "pothole_images"
+    _samples = {
+        "Positive 1": _img_root / "positive" / "G0010033.JPG",
+        "Positive 2": _img_root / "positive" / "G0010117.JPG",
+        "Negative 1": _img_root / "negative" / "G0015965.JPG",
+        "Negative 2": _img_root / "negative" / "G0016163.JPG",
     }
 
-    # ---- INTEGRATION PATTERN (uncomment and adapt) ----
+    if 'model3_sample_path' not in st.session_state:
+        st.session_state['model3_sample_path'] = None
+
+    st.markdown("**Load a sample image:**")
+    _scols = st.columns(len(_samples))
+    for col, (label, path) in zip(_scols, _samples.items()):
+        if col.button(label, use_container_width=True):
+            st.session_state['model3_sample_path'] = str(path)
+
+    st.markdown("---")
+
+    uploaded_file = st.file_uploader("Or upload your own image", type=["png", "jpg", "jpeg"])
+
+    # Resolve image source: upload takes priority over sample
+    _image_source = None
+    _caption = ""
+    if uploaded_file is not None:
+        uploaded_file.seek(0)
+        _image_source = uploaded_file
+        _caption = uploaded_file.name
+    elif st.session_state.get('model3_sample_path'):
+        _image_source = st.session_state['model3_sample_path']
+        _caption = Path(_image_source).name
+
+    if _image_source is not None:
+        if hasattr(_image_source, 'seek'):
+            _image_source.seek(0)
+        st.image(Image.open(_image_source), caption=_caption, use_container_width=True)
+
+        if st.button("Classify"):
+            if hasattr(_image_source, 'seek'):
+                _image_source.seek(0)
+            result = predict_single_image(model, _image_source, threshold=THRESHOLD)
+            if result["predicted_class"] == 1:
+                st.error(f"Pothole detected — {result['confidence']:.2%} confidence")
+            else:
+                st.success(f"No pothole — {result['confidence']:.2%} confidence")
+            st.caption(f"Decision threshold: {result['threshold']:.2f}")
+
+elif model_choice == "Model 4: NLP (Text Classification)":
+    st.header("Model 4: NLP — 311 Complaint Classification")
+    st.markdown(
+        "Paste or load a **resolution description** from a 311 complaint to classify "
+        "it into one of 6 complaint categories."
+    )
+
+    _M4_DIR = ROOT_DIR / "models" / "model4_nlp_classification" / "saved_model"
+
     @st.cache_resource
     def load_model4():
-        model = DistilBertForSequenceClassification.from_pretrained("models/model4_nlp_classification/saved_model/")
-        tokenizer = DistilBertTokenizerFast.from_pretrained("models/model4_nlp_classification/saved_model/")
-        model.eval()
-        return model, tokenizer
-    
-    model, tokenizer = load_model4()
-    
-    user_text = st.text_area("Enter text to classify:", height=150)
-    if st.button("Classify") and user_text:
-        inputs = tokenizer(user_text, return_tensors="pt", truncation=True, padding=True)
-        outputs = model(**inputs)
-        prediction = outputs.logits.argmax(dim=1).item()
-        confidence = outputs.logits.softmax(dim=1).max().item()
-        st.success(f"Predicted Category: {categories[prediction]}")
+        import tensorflow as tf
+        gru   = tf.keras.models.load_model(str(_M4_DIR / "gru_model.keras"))
+        vec   = joblib.load(_M4_DIR / "vectorizer.joblib")
+        le    = joblib.load(_M4_DIR / "label_encoder.joblib")
+        return gru, vec, le
+
+    _m4_model, _m4_vec, _m4_le = load_model4()
+
+    def _m4_preprocess(text: str) -> str:
+        import re
+        text = text.lower()
+        text = re.sub(r'[^\w\s]', '', text)
+        text = re.sub(r'\s+', ' ', text).strip()
+        return text
+
+    _M4_SAMPLES = {
+        "Blocked Driveway": (
+            "The New York City Police Department responded to the complaint and their "
+            "investigation determined that police action was not necessary. If the problem "
+            "persists, please contact 311 to create another complaint."
+        ),
+        "Heat/Hot Water": (
+            "This complaint is a duplicate of a building-wide condition already reported by "
+            "another tenant. The original complaint is still open, and HPD may only need to "
+            "confirm that the condition exists by inspecting one apartment."
+        ),
+        "Illegal Parking": (
+            "The New York City Police Department responded to the complaint and their "
+            "investigation determined that no criminal violation existed. The condition was "
+            "corrected without the need to issue a summons or effect an arrest."
+        ),
+        "Noise - Residential": (
+            "The New York City Police Department responded to the complaint and their "
+            "investigation determined that no criminal violation existed. The condition was "
+            "corrected without the need to issue a summons or effect an arrest. "
+            "If the problem persists, please contact 311 to create another complaint."
+        ),
+        "Snow or Ice": (
+            "Your report was submitted and will be used to monitor snow conditions around "
+            "the City. The Department of Sanitation has a winter storm operation currently "
+            "underway and cannot respond to individual requests at this time."
+        ),
+    }
+
+    if 'model4_text_input' not in st.session_state:
+        st.session_state['model4_text_input'] = ''
+
+    st.markdown("**Load a sample resolution description:**")
+    _s4cols = st.columns(len(_M4_SAMPLES))
+    for col, (lbl, txt) in zip(_s4cols, _M4_SAMPLES.items()):
+        if col.button(lbl, use_container_width=True, key=f"m4_sample_{lbl}"):
+            st.session_state['model4_text_input'] = txt
+            st.rerun()
+
+    st.markdown("---")
+    user_text = st.text_area(
+        "Resolution description text:",
+        height=160,
+        key='model4_text_input',
+        placeholder="Paste a 311 resolution description here…",
+    )
+
+    if st.button("Classify", key="m4_classify") and user_text.strip():
+        cleaned = _m4_preprocess(user_text)
+        vec_input = _m4_vec([cleaned])
+        probs = _m4_model.predict(vec_input, verbose=0)[0]
+        pred_idx = int(np.argmax(probs))
+        confidence = float(probs[pred_idx])
+        label = _m4_le.inverse_transform([pred_idx])[0]
+        st.success(f"Predicted Category: **{label}**")
         st.write(f"Confidence: {confidence:.2%}")
-    # ---- END PATTERN ----
+        st.markdown("**All class probabilities:**")
+        prob_df = pd.DataFrame({
+            "Category": _m4_le.classes_,
+            "Probability": [f"{p:.2%}" for p in probs],
+        }).sort_values("Probability", ascending=False)
+        st.dataframe(prob_df, use_container_width=True, hide_index=True)
 
 elif model_choice == "Model 5: Innovation":
     st.header("🛣️ Model 5: Innovation — Road Deterioration Prediction")
@@ -574,6 +664,10 @@ elif model_choice == "Model 5: Innovation":
     _channel_default = st.session_state.get('model5_channel', CHANNELS[0])
     _day_default     = st.session_state.get('model5_day', DAY_NAMES[1])
 
+    # Pre-initialize text_input key so value= and session_state don't conflict
+    if 'model5_descriptor_input' not in st.session_state:
+        st.session_state['model5_descriptor_input'] = st.session_state.get('model5_descriptor', 'DRIVEWAY')
+
     # Input form
     with st.form('model5_form'):
         col1, col2 = st.columns(2)
@@ -586,7 +680,6 @@ elif model_choice == "Model 5: Innovation":
             )
             input_descriptor = st.text_input(
                 "Descriptor (keyword)",
-                value=st.session_state.get('model5_descriptor', 'DRIVEWAY'),
                 key='model5_descriptor_input',
             )
             input_borough = st.selectbox(
