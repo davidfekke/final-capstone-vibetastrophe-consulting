@@ -2,8 +2,13 @@
 """
 Model 2: Deep Learning — Training Script
 ==========================================
-Train a deep neural network on the same tabular data as Model 1.
-Compare performance against your traditional ML model.
+Train a deep neural network on the traffic accident tabular data.
+
+Design decision: Model 2 predicts binary disruption impact (High=1 / Low=0),
+mapped from the original 1–4 severity scale (Severity 3–4 → High, 1–2 → Low).
+This is intentional — it isolates the DNN-vs-ensemble architecture comparison
+from task complexity. Model 1 handles the full multi-class (1–4) prediction;
+Model 2 provides a complementary fast-triage binary signal for city operations.
 
 Framework: TensorFlow / Keras
 """

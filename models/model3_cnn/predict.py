@@ -18,38 +18,26 @@ THRESHOLD = 0.50  # Adjust this threshold based on your model's performance (e.g
 
 
 def load_model():
-    """Load your trained CNN model from saved_model/.
-
-    TensorFlow / Keras:
-        import tensorflow as tf
-        model = tf.keras.models.load_model(MODEL_PATH / "model.keras")
-    """
+    """Load your trained CNN model from saved_model/."""
     import tensorflow as tf
     model = tf.keras.models.load_model(MODEL_PATH / "efficientnet_model.keras")
     return model
 
 def load_and_preprocess_images(image_dir):
-    """Load images from the test_data/ image folder and apply transforms.
-
-    Example using Keras:
-        from tensorflow.keras.preprocessing.image import load_img, img_to_array
-        import numpy as np
-
-        images, ids = [], []
-        for img_path in sorted(Path(image_dir).glob("*.png")):
-            img = load_img(img_path, target_size=(224, 224))
-            img_array = img_to_array(img) / 255.0
-            images.append(img_array)
-            ids.append(img_path.name)
-        return np.array(images), ids
-    """
+    """Load images from the test_data/ image folder and apply transforms."""
     from tensorflow.keras.preprocessing.image import load_img, img_to_array
     import numpy as np
 
     images, ids = [], []
-    for img_path in sorted(Path(image_dir).glob("*.JPG")):
+    image_dir = Path(image_dir)
+    # Collect images with any common extension regardless of case
+    all_paths = sorted(
+        p for p in image_dir.iterdir()
+        if p.suffix.lower() in {".jpg", ".jpeg", ".png"}
+    )
+    for img_path in all_paths:
         img = load_img(img_path, target_size=(224, 224))
-        img_array = img_to_array(img) # / 255.0
+        img_array = img_to_array(img)
         images.append(img_array)
         ids.append(img_path.name)
     return np.array(images), ids
@@ -60,11 +48,8 @@ def predict(model, images, image_ids):
 
     Should return a DataFrame with columns: image_id, predicted_class, confidence
     """
-    # TODO: Run your model on the images
     y_prob = model.predict(images, verbose=0).ravel()
     y_pred = (y_prob >= THRESHOLD).astype(int)
-
-
 
     return pd.DataFrame({
         "image_id": image_ids,  # Fill with image IDs

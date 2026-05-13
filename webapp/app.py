@@ -290,7 +290,7 @@ elif model_choice == "Model 1: Traditional ML":
         st.write(f"Confidence: {probability.max():.2%}")
     # ---- END PATTERN ----
 
-    st.info("Not yet implemented — load your model and add input fields here.")
+    st.info("Enter values above and click **Predict** to classify traffic accident severity.")
 
 elif model_choice == "Model 2: Deep Learning":
     st.header("Model 2: Deep Learning")

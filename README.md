@@ -155,11 +155,17 @@ No manual steps. No "you need to run this notebook first." No "change this path.
 
 | # | Model Type | What You Build | Key Metric |
 |---|-----------|----------------|------------|
-| 1 | **Traditional ML** | Classical ML algorithm (XGBoost, Random Forest, etc.) | See scenario spec |
-| 2 | **Deep Learning** | Neural network on tabular/structured data (TensorFlow/Keras) | See scenario spec |
-| 3 | **CNN** | Image classification with convolutional neural network | See scenario spec |
-| 4 | **NLP Classification** | Text classification using NLP techniques | See scenario spec |
-| 5 | **Innovation** | Your team's choice — surprise us | Your defined metric |
+| 1 | **Traditional ML** | Random Forest — multi-class accident severity (1–4) | Weighted F1 |
+| 2 | **Deep Learning** | DNN — binary disruption severity (High / Low) | Weighted F1 |
+| 3 | **CNN** | EfficientNetB0 — pothole detection (binary image classification) | Weighted F1 |
+| 4 | **NLP Classification** | Bidirectional GRU — 311 complaint routing (6 classes) | Weighted F1 |
+| 5 | **Innovation** | XGBoost — road deterioration level prediction from 311 data | Weighted F1 |
+
+### Model 2 — Design Decision: Binary Severity
+
+Model 2 intentionally predicts **binary disruption impact** (High vs. Low severity, mapped from the original 1–4 scale) rather than replicating the exact multi-class task of Model 1. This was a deliberate architectural choice: by reducing the output space to two classes, the DNN can focus the comparison on *architecture differences* (deep neural network vs. ensemble tree methods) rather than task complexity. Severity 3–4 incidents are classified as High (major traffic disruption); Severity 1–2 as Low (manageable impact) — a framing that is directly actionable for city operations triage.
+
+This approach answers the client's core question — *"How bad will this accident be for traffic flow?"* — with a clear, high-confidence binary signal, while Model 1 provides the granular 1–4 breakdown when more detail is needed. Together, the two models offer complementary views: one for quick triage, one for resource prioritization.
 
 ---
 
@@ -218,16 +224,16 @@ These check-ins are part of your **Collaboration & Process** grade. Consistent, 
 
 Before your final push, verify:
 
-- [ ] `pip install -r requirements.txt` works cleanly
-- [ ] `python bulk_test.py --all` runs without errors
-- [ ] All 5 `test_data/modelN_results.csv` files are generated
-- [ ] Output CSVs match the templates exactly (column names, types)
-- [ ] No hardcoded absolute paths (use relative paths or config)
-- [ ] No data leakage between train/test splits
-- [ ] Models load from saved files (no retraining during prediction)
-- [ ] Web app runs locally with `streamlit run webapp/app.py`
-- [ ] README updated with your project-specific details
-- [ ] `.gitignore` excludes large data and model files
+- [x] `pip install -r requirements.txt` works cleanly
+- [x] `python bulk_test.py --all` runs without errors
+- [x] All 5 `test_data/modelN_results.csv` files are generated
+- [x] Output CSVs match the templates exactly (column names, types)
+- [x] No hardcoded absolute paths (use relative paths or config)
+- [x] No data leakage between train/test splits
+- [x] Models load from saved files (no retraining during prediction)
+- [x] Web app runs locally with `streamlit run webapp/app.py`
+- [x] README updated with your project-specific details
+- [x] `.gitignore` excludes large data and model files
 
 
 
