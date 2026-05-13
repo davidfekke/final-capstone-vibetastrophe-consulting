@@ -10,6 +10,13 @@ Deploy:       Push to GitHub, then connect to Streamlit Community Cloud
 import warnings
 warnings.filterwarnings('ignore')
 
+import os
+os.environ.setdefault("TF_NUM_INTEROP_THREADS", "1")
+os.environ.setdefault("TF_NUM_INTRAOP_THREADS", "1")
+# Avoid OMP/OpenBLAS fork-safety issues in Streamlit's multi-thread runner
+os.environ.setdefault("OMP_NUM_THREADS", "1")
+os.environ.setdefault("OPENBLAS_NUM_THREADS", "1")
+
 import streamlit as st
 from pathlib import Path
 import sys
@@ -206,15 +213,15 @@ elif model_choice == "Model 1: Traditional ML":
     # ---- INTEGRATION PATTERN (uncomment and adapt) ----
     @st.cache_resource
     def load_model1():
-        return joblib.load("models/model1_traditional_ml/saved_model/model.joblib")
-    
+        return joblib.load(str(ROOT_DIR / "models/model1_traditional_ml/saved_model/model.joblib"))
+
     @st.cache_resource
     def load_scaler1():
-        return joblib.load("models/model1_traditional_ml/saved_model/scaler.joblib")
-    
+        return joblib.load(str(ROOT_DIR / "models/model1_traditional_ml/saved_model/scaler.joblib"))
+
     @st.cache_resource
     def load_feature_cols():
-        return joblib.load("models/model1_traditional_ml/saved_model/feature_columns.joblib")
+        return joblib.load(str(ROOT_DIR / "models/model1_traditional_ml/saved_model/feature_columns.joblib"))
     
     loaded_feature_cols = load_feature_cols()
     feature_cols = [
@@ -311,12 +318,11 @@ elif model_choice == "Model 2: Deep Learning":
 
     @st.cache_resource
     def load_model2():
-         return tf.keras.models.load_model("models/model2_deep_learning/saved_model/model.keras")
-    # model = tf.keras.models.load_model("models/model2_deep_learning/saved_model/model.keras")
+        return tf.keras.models.load_model(str(ROOT_DIR / "models/model2_deep_learning/saved_model/model.keras"))
 
     @st.cache_resource
     def load_scaler2():
-        return joblib.load("models/model2_deep_learning/saved_model/scaler.joblib")
+        return joblib.load(str(ROOT_DIR / "models/model2_deep_learning/saved_model/scaler.joblib"))
     
         # The 29-column list used at training time (includes intentional duplicates)
     model2_features = [
