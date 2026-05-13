@@ -14,7 +14,7 @@ from pathlib import Path
 MODEL_PATH = Path("models/model3_cnn/saved_model/")
 TEST_DATA_DIR = Path("test_data/")
 OUTPUT_FILE = TEST_DATA_DIR / "model3_results.csv"
-THRESHOLD = 0.50  # Adjust this threshold based on your model's performance (e.g., 0.5 for balanced classes, or lower if you want to catch more positives)
+THRESHOLD = 0.65  # Tuned on validation set during training for best weighted F1
 
 
 def load_model():
