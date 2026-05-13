@@ -404,7 +404,8 @@ elif model_choice == "Model 2: Deep Learning":
             
         input_df = pd.DataFrame([input_data])[model2_features]  # 29 cols with duplicates
         scaled_input_df = scaler.transform(input_df)
-        predictions = model.predict(scaled_input_df)
+        import tensorflow as tf
+        predictions = model(scaled_input_df, training=False).numpy()
         label = "High Severity" if predictions[0][0] >= 0.5 else "Low Severity"
         st.success(f"Prediction: {label}")
         st.write(f"Confidence: {predictions[0][0]:.2%}")
@@ -537,36 +538,48 @@ elif model_choice == "Model 4: NLP (Text Classification)":
     def _m4_preprocess(text: str) -> str:
         import re
         text = text.lower()
-        text = re.sub(r'[^\w\s]', '', text)
+        text = re.sub(r'[^\w\s\-/]', '', text)
         text = re.sub(r'\s+', ' ', text).strip()
         return text
 
+    def _m4_display_label(raw: str) -> str:
+        """Normalize label casing for display (e.g. HEAT/HOT WATER → Heat/Hot Water)."""
+        if raw.isupper():
+            return ' / '.join(
+                ' '.join(word.capitalize() for word in part.split())
+                for part in raw.split('/')
+            )
+        return raw
+
     _M4_SAMPLES = {
-        "Blocked Driveway": (
-            "The New York City Police Department responded to the complaint and their "
-            "investigation determined that police action was not necessary. If the problem "
-            "persists, please contact 311 to create another complaint."
-        ),
         "Heat/Hot Water": (
             "This complaint is a duplicate of a building-wide condition already reported by "
             "another tenant. The original complaint is still open, and HPD may only need to "
             "confirm that the condition exists by inspecting one apartment."
         ),
-        "Illegal Parking": (
-            "The New York City Police Department responded to the complaint and their "
-            "investigation determined that no criminal violation existed. The condition was "
-            "corrected without the need to issue a summons or effect an arrest."
-        ),
-        "Noise - Residential": (
-            "The New York City Police Department responded to the complaint and their "
-            "investigation determined that no criminal violation existed. The condition was "
-            "corrected without the need to issue a summons or effect an arrest. "
-            "If the problem persists, please contact 311 to create another complaint."
-        ),
         "Snow or Ice": (
             "Your report was submitted and will be used to monitor snow conditions around "
             "the City. The Department of Sanitation has a winter storm operation currently "
             "underway and cannot respond to individual requests at this time."
+        ),
+        "Illegal Parking": (
+            "The New York City Police Department responded to the complaint and observed no "
+            "criminal violation upon their arrival. If the problem persists, please contact "
+            "311 to create another complaint. If possible, provide contact information so "
+            "responding officers may reach out to you for more details. We count on New "
+            "Yorkers like yourself to maintain a safe City."
+        ),
+        "Blocked Driveway": (
+            "The New York City Police Department responded to the complaint and their "
+            "investigation determined that a violation of law occurred. Police issued a "
+            "summons in response to the complaint. Thank you for attention to this matter. "
+            "We count on New Yorkers like yourself to maintain a safe City, so please let "
+            "us know if you see other conditions that require our attention."
+        ),
+        "Other": (
+            "The New York City Police Department responded to the complaint and their "
+            "investigation determined that police action was not necessary. If the problem "
+            "persists, please contact 311 to create another complaint."
         ),
     }
 
@@ -591,18 +604,31 @@ elif model_choice == "Model 4: NLP (Text Classification)":
     if st.button("Classify", key="m4_classify") and user_text.strip():
         cleaned = _m4_preprocess(user_text)
         vec_input = _m4_vec([cleaned])
-        probs = _m4_model.predict(vec_input, verbose=0)[0]
+        probs = _m4_model(vec_input, training=False).numpy()[0]
         pred_idx = int(np.argmax(probs))
         confidence = float(probs[pred_idx])
-        label = _m4_le.inverse_transform([pred_idx])[0]
-        st.success(f"Predicted Category: **{label}**")
+        raw_label = _m4_le.inverse_transform([pred_idx])[0]
+        display_label = _m4_display_label(raw_label)
+
+        st.success(f"Predicted Category: **{display_label}**")
         st.write(f"Confidence: {confidence:.2%}")
+
         st.markdown("**All class probabilities:**")
-        prob_df = pd.DataFrame({
-            "Category": _m4_le.classes_,
-            "Probability": [f"{p:.2%}" for p in probs],
-        }).sort_values("Probability", ascending=False)
-        st.dataframe(prob_df, use_container_width=True, hide_index=True)
+        sorted_pairs = sorted(
+            zip(_m4_le.classes_, probs), key=lambda x: x[1], reverse=True
+        )
+        # Bar chart
+        chart_df = pd.DataFrame(
+            {"Probability": {_m4_display_label(c): float(p) for c, p in sorted_pairs}}
+        )
+        st.bar_chart(chart_df, height=260)
+        # Progress-bar table
+        for raw_c, prob in sorted_pairs:
+            disp_c = _m4_display_label(raw_c)
+            col_a, col_b = st.columns([3, 1])
+            col_a.markdown(f"**{disp_c}**" if raw_c == raw_label else disp_c)
+            col_b.markdown(f"`{prob:.2%}`")
+            st.progress(float(prob))
 
 elif model_choice == "Model 5: Innovation":
     st.header("🛣️ Model 5: Innovation — Road Deterioration Prediction")
