@@ -10,8 +10,8 @@ Framework: TensorFlow / Keras
 IMPORTANT: Resize images before training! Raw images may be very high resolution
 and will cause memory errors if loaded full-size.
 """
-from gc import callbacks
 import os
+import numpy as np
 from pathlib import Path
 import tensorflow as tf
 

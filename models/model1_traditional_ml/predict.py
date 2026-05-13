@@ -20,7 +20,7 @@ from pipelines.data_pipeline import clean_data, engineer_features
 MODEL_DIR = Path(__file__).resolve().parent / "saved_model"
 TEST_DATA_DIR = PROJECT_ROOT / "test_data"
 OUTPUT_FILE = TEST_DATA_DIR / "model1_results.csv"
-TEST_DATA_FILE = TEST_DATA_DIR / "City_traffic_Test.csv"
+TEST_DATA_FILE = TEST_DATA_DIR / "city_traffic_accidents.csv"
 
 DROP_COLS = [
     'Severity', 'Source', 'Description', 'Street', 'City', 'County',

@@ -6,11 +6,14 @@ matplotlib>=3.7.0
 seaborn>=0.12.0
 
 # Deep Learning
-tensorflow>=2.13.0
+tensorflow>=2.16.0
+keras>=3.0.0
 
 # NLP
 nltk>=3.8.0
+torch>=2.0.0
 transformers>=4.30.0
+datasets>=2.14.0
 
 # Embeddings (optional, for advanced NLP)
 sentence-transformers>=2.2.0

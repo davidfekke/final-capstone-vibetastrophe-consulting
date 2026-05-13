@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: smartcityfsa
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    branch: kalpana_innovation_model
+    plan: free
+    region: oregon
+    envVars:
+      - key: PYTHONUNBUFFERED
+        value: "1"
+      - key: STREAMLIT_SERVER_HEADLESS
+        value: "true"
+      - key: STREAMLIT_SERVER_PORT
+        value: "8501"
+    healthCheckPath: /_stcore/health
