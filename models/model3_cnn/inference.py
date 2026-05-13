@@ -32,7 +32,9 @@ def preprocess_uploaded_image(image_source: Any) -> np.ndarray:
 def predict_single_image(model: Any, image: Any, threshold: float = THRESHOLD) -> dict[str, Any]:
     """Run a single-image prediction and return a normalized result payload."""
     image_batch = preprocess_uploaded_image(image)
-    probability = float(model.predict(image_batch, verbose=0).ravel()[0])
+    # Use direct call (eager) instead of model.predict() to avoid thread-pool
+    # deadlocks when called from Streamlit's script-runner thread.
+    probability = float(model(image_batch, training=False).numpy().ravel()[0])
     predicted_class = int(probability >= threshold)
     label = "Positive" if predicted_class == 1 else "Negative"
 
