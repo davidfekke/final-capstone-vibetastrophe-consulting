@@ -7,6 +7,7 @@ Loads the trained DNN and generates binary severity predictions on test data.
 Usage: python predict.py
 Output: test_data/model2_results.csv
 """
+import sys
 import pandas as pd
 import platform
 from pathlib import Path
@@ -14,6 +15,9 @@ import tensorflow as tf
 import joblib
 import numpy as np
 
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(PROJECT_ROOT))
+from pipelines.data_pipeline import clean_data, engineer_features
 
 # Paths
 MODEL_PATH     = Path("models/model2_deep_learning/saved_model/")
@@ -60,6 +64,17 @@ def load_model():
     scaler = joblib.load(MODEL_PATH / "scaler.joblib")
     return model, scaler
 
+def preprocess(df):
+    """Apply the same cleaning and feature engineering used during training."""
+    ids = df['ID'].copy() if 'ID' in df.columns else pd.Series(range(len(df)))
+
+    df = clean_data(df)
+    df = engineer_features(df)
+
+    # Select feature columns (29 cols, including intentional duplicates for scaler alignment)
+    X = df[features].copy().astype(np.float32).fillna(0.0)
+    return ids, X
+
 def predict(model, X):
     """Generate predictions on test data.
 
@@ -77,12 +92,17 @@ def main():
     model, scaler = load_model()
 
     # Load test data
+    print(f"Loading test data from {TEST_DATA_FILE}...")
     test_df = pd.read_csv(TEST_DATA_FILE)
-    
+    print(f"  {len(test_df):,} rows loaded")
+
+    # Preprocess raw data
+    print("Preprocessing...")
+    ids, X = preprocess(test_df)
 
     # Generate predictions
-    scaled_test_df = scaler.transform(test_df[features])
-    predictions = predict(model, scaled_test_df)
+    scaled_X = scaler.transform(X)
+    predictions = predict(model, scaled_X)
 
     # Binary classifier (sigmoid): model outputs positive-class probability per row.
     positive_probs = predictions.ravel()
@@ -91,14 +111,14 @@ def main():
 
     # Save results — MUST match output template exactly
     results = pd.DataFrame({
-        "id": test_df["ID"],
-        "prediction": predicted_labels,
-        "probability": positive_probs,
-        "confidence": confidence_scores,
+        "id":          ids.values,
+        "prediction":  predicted_labels,
+        "probability": positive_probs.round(4),
+        "confidence":  confidence_scores.round(4),
     })
     results.to_csv(OUTPUT_FILE, index=False)
 
-    print(f"Predictions saved to {OUTPUT_FILE}")
+    print(f"Predictions saved to {OUTPUT_FILE} ({len(results):,} rows)")
 
 
 if __name__ == "__main__":
