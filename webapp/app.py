@@ -10,6 +10,13 @@ Deploy:       Push to GitHub, then connect to Streamlit Community Cloud
 import warnings
 warnings.filterwarnings('ignore')
 
+import os
+os.environ.setdefault("TF_NUM_INTEROP_THREADS", "1")
+os.environ.setdefault("TF_NUM_INTRAOP_THREADS", "1")
+# Avoid OMP/OpenBLAS fork-safety issues in Streamlit's multi-thread runner
+os.environ.setdefault("OMP_NUM_THREADS", "1")
+os.environ.setdefault("OPENBLAS_NUM_THREADS", "1")
+
 import streamlit as st
 from pathlib import Path
 import sys
@@ -137,15 +144,28 @@ def convert_feature_value(feature_name, value):
 
 # Page config
 st.set_page_config(
-    page_title="AI Capstone Dashboard",
-    page_icon="🔬",
+    page_title="SmartCity FSA | AI Dashboard",
+    page_icon="🏙️",
     layout="wide",
 )
 
-st.title("AI Capstone Dashboard")
-st.write("Select a model from the sidebar to make predictions.")
+# Header
+st.markdown("""
+    <div style='text-align:center; padding: 1rem 0 0.5rem 0;'>
+        <h1 style='font-size:2.6rem; margin-bottom:0;'>🏙️ SmartCity FSA</h1>
+        <p style='font-size:1.1rem; color:#90CAF9; margin-top:0.3rem;'>
+            AI-Powered Urban Intelligence Platform &nbsp;|&nbsp; www.smartcityfsa.com
+        </p>
+    </div>
+    <hr style='border:1px solid #1E88E5; margin-bottom:1.5rem;'>
+""", unsafe_allow_html=True)
 
 # Sidebar navigation
+st.sidebar.image("https://img.icons8.com/fluency/96/city.png", width=60)
+st.sidebar.markdown("## SmartCity FSA")
+st.sidebar.markdown("AI Urban Intelligence")
+st.sidebar.markdown("---")
+
 model_choice = st.sidebar.selectbox(
     "Choose a Model",
     [
@@ -158,29 +178,34 @@ model_choice = st.sidebar.selectbox(
     ],
 )
 
-# ---------------------------------------------------------------------------
-# Helper: Cache model loading so it only happens once
-# ---------------------------------------------------------------------------
-# Use @st.cache_resource for models — they load once and stay in memory.
-#
-# Example:
-#     @st.cache_resource
-#     def load_model1():
-#         import joblib
-#         return joblib.load("models/model1_traditional_ml/saved_model/model.joblib")
-#
-#     @st.cache_resource
-#     def load_model3():
-#         import tensorflow as tf
-#         return tf.keras.models.load_model("models/model3_cnn/saved_model/model.keras")
+st.sidebar.markdown("---")
+st.sidebar.caption("www.smartcityfsa.com")
 
 # ---------------------------------------------------------------------------
-# Model pages — fill these in with your model loading and prediction logic
+# Model pages
 # ---------------------------------------------------------------------------
 
 if model_choice == "Home":
-    st.write("Welcome! Use the sidebar to navigate between models.")
-    st.write("Each model page lets you input data and see predictions in real time.")
+    st.markdown("### Welcome to SmartCity FSA AI Platform")
+    st.markdown("Use the sidebar to navigate between AI models. Each model makes real-time predictions on urban data.")
+
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.info("**Model 1: Traditional ML**\n\nPredicts traffic accident severity using Random Forest on weather & road features.")
+        st.info("**Model 2: Deep Learning**\n\nDeep neural network for accident severity prediction using the same feature set.")
+    with col2:
+        st.info("**Model 3: CNN**\n\nEfficientNetB0 image classifier — detects potholes from road images.")
+        st.info("**Model 4: NLP**\n\nBidirectional GRU with TF-IDF embeddings — classifies 311 complaint descriptions into 6 categories.")
+    with col3:
+        st.info("**Model 5: Innovation**\n\nXGBoost road deterioration predictor using NYC 311 data. Rates severity: Low → Critical.")
+        st.success("**Live Data**\n\n434,722 NYC 311 complaints processed for batch predictions.")
+
+    st.markdown("---")
+    st.markdown("""
+        <div style='text-align:center; color:#90CAF9; font-size:0.9rem;'>
+            SmartCity FSA &nbsp;|&nbsp; AI Capstone Project &nbsp;|&nbsp; www.smartcityfsa.com
+        </div>
+    """, unsafe_allow_html=True)
 
 elif model_choice == "Model 1: Traditional ML":
     st.header("Model 1: Traditional ML")
@@ -188,15 +213,15 @@ elif model_choice == "Model 1: Traditional ML":
     # ---- INTEGRATION PATTERN (uncomment and adapt) ----
     @st.cache_resource
     def load_model1():
-        return joblib.load("models/model1_traditional_ml/saved_model/model.joblib")
-    
+        return joblib.load(str(ROOT_DIR / "models/model1_traditional_ml/saved_model/model.joblib"))
+
     @st.cache_resource
     def load_scaler1():
-        return joblib.load("models/model1_traditional_ml/saved_model/scaler.joblib")
-    
+        return joblib.load(str(ROOT_DIR / "models/model1_traditional_ml/saved_model/scaler.joblib"))
+
     @st.cache_resource
     def load_feature_cols():
-        return joblib.load("models/model1_traditional_ml/saved_model/feature_columns.joblib")
+        return joblib.load(str(ROOT_DIR / "models/model1_traditional_ml/saved_model/feature_columns.joblib"))
     
     loaded_feature_cols = load_feature_cols()
     feature_cols = [
@@ -272,7 +297,18 @@ elif model_choice == "Model 1: Traditional ML":
         st.write(f"Confidence: {probability.max():.2%}")
     # ---- END PATTERN ----
 
-    st.info("Not yet implemented — load your model and add input fields here.")
+    st.info("Enter values above and click **Predict** to classify traffic accident severity.")
+
+    st.markdown("---")
+    st.subheader("Feature Importance")
+    st.caption("Top 15 features by Random Forest Gini importance.")
+    _importance_df = (
+        pd.DataFrame({"Feature": feature_cols, "Importance": model.feature_importances_})
+        .sort_values("Importance", ascending=False)
+        .head(15)
+        .set_index("Feature")
+    )
+    st.bar_chart(_importance_df)
 
 elif model_choice == "Model 2: Deep Learning":
     st.header("Model 2: Deep Learning")
@@ -282,12 +318,11 @@ elif model_choice == "Model 2: Deep Learning":
 
     @st.cache_resource
     def load_model2():
-         return tf.keras.models.load_model("models/model2_deep_learning/saved_model/model.keras")
-    # model = tf.keras.models.load_model("models/model2_deep_learning/saved_model/model.keras")
+        return tf.keras.models.load_model(str(ROOT_DIR / "models/model2_deep_learning/saved_model/model.keras"))
 
     @st.cache_resource
     def load_scaler2():
-        return joblib.load("models/model2_deep_learning/saved_model/scaler.joblib")
+        return joblib.load(str(ROOT_DIR / "models/model2_deep_learning/saved_model/scaler.joblib"))
     
         # The 29-column list used at training time (includes intentional duplicates)
     model2_features = [
@@ -373,70 +408,201 @@ elif model_choice == "Model 2: Deep Learning":
         label = "High Severity" if predictions[0][0] >= 0.5 else "Low Severity"
         st.success(f"Prediction: {label}")
         st.write(f"Confidence: {predictions[0][0]:.2%}")
-        
+
+    st.markdown("---")
+    st.subheader("Model 1 vs Model 2 — Architecture Comparison")
+    _cmp = pd.DataFrame({
+        "": [
+            "Architecture",
+            "Output",
+            "Imbalance handling",
+            "Interpretability",
+            "Best for",
+        ],
+        "Model 1 — Random Forest": [
+            "Ensemble of decision trees",
+            "Severity 1 / 2 / 3 / 4",
+            "Class weights + balanced sampling",
+            "High — feature importance",
+            "Resource prioritisation",
+        ],
+        "Model 2 — Deep Neural Network": [
+            "3-layer fully connected DNN",
+            "High (Sev 3–4) or Low (Sev 1–2)",
+            "Class weights in binary cross-entropy",
+            "Moderate",
+            "Fast operational triage",
+        ],
+    }).set_index("")
+    st.table(_cmp)
+    st.caption(
+        "Model 2 uses binary output by design — it isolates the DNN vs. ensemble comparison "
+        "from task complexity. Model 1 handles the full 1–4 breakdown."
+    )
 
 elif model_choice == "Model 3: CNN (Image Classification)":
     from models.model3_cnn.inference import THRESHOLD, predict_single_image
-    st.header("Model 3: CNN — Image Classification")
+    st.header("Model 3: CNN — Pothole Image Classification")
+    st.markdown(
+        "Upload a road image (or load a sample below) to classify it as "
+        "**Pothole (Positive)** or **No Pothole (Negative)**."
+    )
 
-    # ---- INTEGRATION PATTERN (uncomment and adapt) ----
     @st.cache_resource
     def load_model3():
         import tensorflow as tf
-        return tf.keras.models.load_model("models/model3_cnn/saved_model/efficientnet_model.keras")
-    
+        model_path = ROOT_DIR / "models" / "model3_cnn" / "saved_model" / "efficientnet_model.keras"
+        return tf.keras.models.load_model(str(model_path))
+
     model = load_model3()
-    
-    uploaded_file = st.file_uploader("Upload an image", type=["png", "jpg", "jpeg"])
-    if uploaded_file is not None:
-        uploaded_file.seek(0)
-        image = Image.open(uploaded_file)
-        st.image(image, caption="Uploaded Image", use_container_width=True)
-    
-        if st.button("Classify"):
-            result = predict_single_image(model, uploaded_file, threshold=THRESHOLD)
-            if result["confidence"] >= THRESHOLD:
-                st.success(f"Prediction: {result['label']}")
-            else:
-                st.warning(f"Prediction: {result['label']}")
-            st.write(f"Confidence: {result['confidence']:.2%}")
-            st.caption(f"Decision threshold: {result['threshold']:.2f}")
-    # ---- END PATTERN ----
 
-    st.info("Not yet implemented — add image upload and classification here.")
-
-elif model_choice == "Model 4: NLP (Text Classification)":
-    from transformers import DistilBertTokenizerFast, DistilBertForSequenceClassification
-    st.header("Model 4: NLP — Text Classification")
-
-    categories = {
-        0: "Blocked Driveway",
-        1: "Heat/Hot water",
-        2: "Illegal Parking",
-        3: "Noise - Residential",
-        4: "Other",
-        5: "Snow or Ice"
+    # --- Sample image buttons ---
+    _img_root = ROOT_DIR / "data" / "raw" / "pothole_images"
+    _samples = {
+        "Positive 1": _img_root / "positive" / "G0010033.JPG",
+        "Positive 2": _img_root / "positive" / "G0010117.JPG",
+        "Negative 1": _img_root / "negative" / "G0015965.JPG",
+        "Negative 2": _img_root / "negative" / "G0016163.JPG",
     }
 
-    # ---- INTEGRATION PATTERN (uncomment and adapt) ----
+    if 'model3_sample_path' not in st.session_state:
+        st.session_state['model3_sample_path'] = None
+
+    st.markdown("**Load a sample image:**")
+    _scols = st.columns(len(_samples))
+    for col, (label, path) in zip(_scols, _samples.items()):
+        if col.button(label, use_container_width=True):
+            st.session_state['model3_sample_path'] = str(path)
+
+    st.markdown("---")
+
+    uploaded_file = st.file_uploader("Or upload your own image", type=["png", "jpg", "jpeg"])
+
+    # Resolve image source: upload takes priority over sample
+    _image_source = None
+    _caption = ""
+    if uploaded_file is not None:
+        uploaded_file.seek(0)
+        _image_source = uploaded_file
+        _caption = uploaded_file.name
+    elif st.session_state.get('model3_sample_path'):
+        _image_source = st.session_state['model3_sample_path']
+        _caption = Path(_image_source).name
+
+    if _image_source is not None:
+        if hasattr(_image_source, 'seek'):
+            _image_source.seek(0)
+        st.image(Image.open(_image_source), caption=_caption, use_container_width=True)
+
+        if st.button("Classify"):
+            if hasattr(_image_source, 'seek'):
+                _image_source.seek(0)
+            result = predict_single_image(model, _image_source, threshold=THRESHOLD)
+            if result["predicted_class"] == 1:
+                st.error(f"Pothole detected — {result['confidence']:.2%} confidence")
+            else:
+                st.success(f"No pothole — {result['confidence']:.2%} confidence")
+            st.caption(f"Decision threshold: {result['threshold']:.2f}")
+
+elif model_choice == "Model 4: NLP (Text Classification)":
+    st.header("Model 4: NLP — 311 Complaint Classification")
+    st.markdown(
+        "Paste or load a **resolution description** from a 311 complaint to classify "
+        "it into one of 6 complaint categories."
+    )
+
+    _distilbert_weights = (
+        ROOT_DIR / "models" / "model4_nlp_classification" / "saved_model" / "final_model" / "model.safetensors"
+    )
+    if _distilbert_weights.exists():
+        st.success("Active model: DistilBERT (fine-tuned transformer)")
+    else:
+        st.info(
+            "Active model: Bidirectional GRU + TF-IDF. "
+            "DistilBERT upgrade ready — see `predict_distilbert.py` and README."
+        )
+
+    _M4_DIR = ROOT_DIR / "models" / "model4_nlp_classification" / "saved_model"
+
     @st.cache_resource
     def load_model4():
-        model = DistilBertForSequenceClassification.from_pretrained("models/model4_nlp_classification/saved_model/")
-        tokenizer = DistilBertTokenizerFast.from_pretrained("models/model4_nlp_classification/saved_model/")
-        model.eval()
-        return model, tokenizer
-    
-    model, tokenizer = load_model4()
-    
-    user_text = st.text_area("Enter text to classify:", height=150)
-    if st.button("Classify") and user_text:
-        inputs = tokenizer(user_text, return_tensors="pt", truncation=True, padding=True)
-        outputs = model(**inputs)
-        prediction = outputs.logits.argmax(dim=1).item()
-        confidence = outputs.logits.softmax(dim=1).max().item()
-        st.success(f"Predicted Category: {categories[prediction]}")
+        import tensorflow as tf
+        gru   = tf.keras.models.load_model(str(_M4_DIR / "gru_model.keras"))
+        vec   = joblib.load(_M4_DIR / "vectorizer.joblib")
+        le    = joblib.load(_M4_DIR / "label_encoder.joblib")
+        return gru, vec, le
+
+    _m4_model, _m4_vec, _m4_le = load_model4()
+
+    def _m4_preprocess(text: str) -> str:
+        import re
+        text = text.lower()
+        text = re.sub(r'[^\w\s]', '', text)
+        text = re.sub(r'\s+', ' ', text).strip()
+        return text
+
+    _M4_SAMPLES = {
+        "Blocked Driveway": (
+            "The New York City Police Department responded to the complaint and their "
+            "investigation determined that police action was not necessary. If the problem "
+            "persists, please contact 311 to create another complaint."
+        ),
+        "Heat/Hot Water": (
+            "This complaint is a duplicate of a building-wide condition already reported by "
+            "another tenant. The original complaint is still open, and HPD may only need to "
+            "confirm that the condition exists by inspecting one apartment."
+        ),
+        "Illegal Parking": (
+            "The New York City Police Department responded to the complaint and their "
+            "investigation determined that no criminal violation existed. The condition was "
+            "corrected without the need to issue a summons or effect an arrest."
+        ),
+        "Noise - Residential": (
+            "The New York City Police Department responded to the complaint and their "
+            "investigation determined that no criminal violation existed. The condition was "
+            "corrected without the need to issue a summons or effect an arrest. "
+            "If the problem persists, please contact 311 to create another complaint."
+        ),
+        "Snow or Ice": (
+            "Your report was submitted and will be used to monitor snow conditions around "
+            "the City. The Department of Sanitation has a winter storm operation currently "
+            "underway and cannot respond to individual requests at this time."
+        ),
+    }
+
+    if 'model4_text_input' not in st.session_state:
+        st.session_state['model4_text_input'] = ''
+
+    st.markdown("**Load a sample resolution description:**")
+    _s4cols = st.columns(len(_M4_SAMPLES))
+    for col, (lbl, txt) in zip(_s4cols, _M4_SAMPLES.items()):
+        if col.button(lbl, use_container_width=True, key=f"m4_sample_{lbl}"):
+            st.session_state['model4_text_input'] = txt
+            st.rerun()
+
+    st.markdown("---")
+    user_text = st.text_area(
+        "Resolution description text:",
+        height=160,
+        key='model4_text_input',
+        placeholder="Paste a 311 resolution description here…",
+    )
+
+    if st.button("Classify", key="m4_classify") and user_text.strip():
+        cleaned = _m4_preprocess(user_text)
+        vec_input = _m4_vec([cleaned])
+        probs = _m4_model.predict(vec_input, verbose=0)[0]
+        pred_idx = int(np.argmax(probs))
+        confidence = float(probs[pred_idx])
+        label = _m4_le.inverse_transform([pred_idx])[0]
+        st.success(f"Predicted Category: **{label}**")
         st.write(f"Confidence: {confidence:.2%}")
-    # ---- END PATTERN ----
+        st.markdown("**All class probabilities:**")
+        prob_df = pd.DataFrame({
+            "Category": _m4_le.classes_,
+            "Probability": [f"{p:.2%}" for p in probs],
+        }).sort_values("Probability", ascending=False)
+        st.dataframe(prob_df, use_container_width=True, hide_index=True)
 
 elif model_choice == "Model 5: Innovation":
     st.header("🛣️ Model 5: Innovation — Road Deterioration Prediction")
@@ -574,6 +740,10 @@ elif model_choice == "Model 5: Innovation":
     _channel_default = st.session_state.get('model5_channel', CHANNELS[0])
     _day_default     = st.session_state.get('model5_day', DAY_NAMES[1])
 
+    # Pre-initialize text_input key so value= and session_state don't conflict
+    if 'model5_descriptor_input' not in st.session_state:
+        st.session_state['model5_descriptor_input'] = st.session_state.get('model5_descriptor', 'DRIVEWAY')
+
     # Input form
     with st.form('model5_form'):
         col1, col2 = st.columns(2)
@@ -586,7 +756,6 @@ elif model_choice == "Model 5: Innovation":
             )
             input_descriptor = st.text_input(
                 "Descriptor (keyword)",
-                value=st.session_state.get('model5_descriptor', 'DRIVEWAY'),
                 key='model5_descriptor_input',
             )
             input_borough = st.selectbox(
